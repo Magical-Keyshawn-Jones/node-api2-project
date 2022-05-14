@@ -49,7 +49,12 @@ router.post('/posts', (request, response) => {
     } else { 
 
         Post.insert(body)
-        .then(object=>{response.status(201).json(object)})
+        .then(object=>{
+            const newPost = {}
+            newPost.title = object.title
+            newPost.contents = object.contents
+            response.status(201).json(object)
+        })
         .catch(err=>{
             console.log(err)
             response.status(500).json({ message: 'There was an error while saving the post to the database' })
@@ -58,22 +63,71 @@ router.post('/posts', (request, response) => {
 })
 
 // Returns Put changes
-router.put('/posts/:id', (request, response) => {
-    // Storing body inside changes variable
-    const changes = request.body
-    const { id } = request.id
-    Post.update(id, changes)
-    .then(object => {
-        if (object) {
-            response.status(200).json(object)
-        } else {
-            response.status(404).json({ message: 'The post with the specified ID does not exist'})
-        }
+router.put('/posts/:id', async (req, res) => {
+    // Storing values
+    const { id } = req.params
+    const { title, contents } = req.body
+    const body = req.body
+    const realPost = await Post.findById(id)
+
+    // Testing for post/title/contents
+    if (!realPost) {
+        return res.status(404).json({ message: 'The post with the specified ID does not exist'})
+    } else if ( title === undefined || contents === undefined ) {
+        return res.status(400).json({ message: 'Please provide title and contents for the post'})
+    }
+
+    Post.update(id, body)
+    .then(results => {
+        res.status(200).json(results)
     })
-    .catch( err => {
+    .catch(err => {
         console.log(err)
-        response.status(500).json({ message: 'The post information could not be modified'})
+        res.status(500).json({ message: 'The post information could not be modified' })
     })
 })
 
+router.delete('/posts/:id', async (req, res) => {
+    // Storing values
+    const { id } = req.params
+    const realPost = await Post.findById(id)
+
+    // Checking for post existence
+    if (!realPost) {
+        return res.status(404).json({ message: 'The post with the specified ID does not exist'})
+    }
+
+    // Deleting Post
+    Post.remove(id)
+    .then(results => {
+        res.status(200).json(results)
+    })
+    .catch(err => {
+        console.log(err)
+        res.status(500).json({ message: 'The post could not be removed' })
+    })
+
+})
+
+// Grabbing comments
+router.get('/posts/:id/comments', async (req, res) => {
+    // Storing Values
+    const { id } = req.params
+    const realPost = await Post.findById(id)
+
+    // Checking if post exists
+    if (!realPost) {
+        return res.status(404).json({ message: 'The post with the specified ID does not exist' })
+    }
+
+    Post.findCommentById(id)
+    .then(results => {
+        res.status(200).json(results)
+    })
+    .catch(err => {
+        console.log(err)
+        res.status(500).json({ message: 'The comments information could be retrieved'})
+    })
+
+})
 module.exports = router
